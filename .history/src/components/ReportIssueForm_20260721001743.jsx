@@ -1,3 +1,6 @@
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import {
   AlertCircle,
   Send,
@@ -22,6 +25,24 @@ const ISSUE_CATEGORIES = [
   { value: 'other', label: 'Other' },
 ];
 
+const reportSchema = z.object({
+  title: z
+    .string()
+    .min(5, 'Title must be at least 5 characters')
+    .max(100, 'Title must be 100 characters or fewer'),
+  description: z
+    .string()
+    .min(20, 'Description must be at least 20 characters')
+    .max(1000, 'Description must be 1,000 characters or fewer'),
+  category: z.enum(ISSUE_CATEGORIES.map((c) => c.value), {
+    errorMap: () => ({ message: 'Please select a category' }),
+  }),
+  location: z.string().min(3, 'Please enter a location or landmark'),
+  fullName: z.string().min(2, 'Full name is required'),
+  email: z.string().email('Please enter a valid email address'),
+  phone: z.string().min(10, 'Please enter a valid phone number').optional().or(z.literal('')),
+});
+
 function FormField({ label, icon: Icon, error, children }) {
   return (
     <div>
@@ -40,87 +61,36 @@ function FormField({ label, icon: Icon, error, children }) {
   );
 }
 
-function validate(data) {
-  const errors = {};
-
-  if (data.title.trim().length < 5) {
-    errors.title = 'Title must be at least 5 characters';
-  } else if (data.title.trim().length > 100) {
-    errors.title = 'Title must be 100 characters or fewer';
-  }
-
-  if (!data.category) {
-    errors.category = 'Please select a category';
-  }
-
-  if (data.description.trim().length < 20) {
-    errors.description = 'Description must be at least 20 characters';
-  } else if (data.description.trim().length > 1000) {
-    errors.description = 'Description must be 1,000 characters or fewer';
-  }
-
-  if (data.location.trim().length < 3) {
-    errors.location = 'Please enter a location or landmark';
-  }
-
-  if (data.fullName.trim().length < 2) {
-    errors.fullName = 'Full name is required';
-  }
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(data.email)) {
-    errors.email = 'Please enter a valid email address';
-  }
-
-  if (data.phone && data.phone.trim().length < 10) {
-    errors.phone = 'Please enter a valid phone number';
-  }
-
-  return errors;
-}
-
-const initialForm = {
-  title: '',
-  description: '',
-  category: '',
-  location: '',
-  fullName: '',
-  email: '',
-  phone: '',
-};
-
 export default function ReportIssueForm() {
-  const [form, setForm] = useState(initialForm);
-  const [errors, setErrors] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(reportSchema),
+    defaultValues: {
+      title: '',
+      description: '',
+      category: '',
+      location: '',
+      fullName: '',
+      email: '',
+      phone: '',
+    },
+  });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    const validationErrors = validate(form);
-    setErrors(validationErrors);
-
-    if (Object.keys(validationErrors).length > 0) {
-      return;
-    }
-
-    setIsSubmitting(true);
+  const onSubmit = async (data) => {
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1500));
-    console.log('Report submitted:', form);
-    setIsSubmitting(false);
+    console.log('Report submitted:', data);
     setSubmitted(true);
   };
 
   const handleReset = () => {
-    setForm(initialForm);
-    setErrors({});
+    reset();
     setSubmitted(false);
   };
 
@@ -145,7 +115,7 @@ export default function ReportIssueForm() {
 
   return (
     <form
-      onSubmit={handleSubmit}
+      onSubmit={handleSubmit(onSubmit)}
       className="mx-auto max-w-lg space-y-5 rounded-2xl border border-gray-200 bg-white p-8 shadow-sm"
       noValidate
     >
@@ -156,27 +126,23 @@ export default function ReportIssueForm() {
         </p>
       </div>
 
-      <FormField label="Issue Title" icon={FileText} error={errors.title}>
+      <FormField label="Issue Title" icon={FileText} error={errors.title?.message}>
         <input
           type="text"
-          name="title"
-          value={form.title}
-          onChange={handleChange}
           placeholder="e.g. Pothole on Rizal Avenue"
           className={`w-full rounded-lg border px-3 py-2.5 text-sm transition-colors placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
             errors.title ? 'border-red-400' : 'border-gray-300'
           }`}
+          {...register('title')}
         />
       </FormField>
 
-      <FormField label="Category" icon={Tag} error={errors.category}>
+      <FormField label="Category" icon={Tag} error={errors.category?.message}>
         <select
-          name="category"
-          value={form.category}
-          onChange={handleChange}
           className={`w-full rounded-lg border px-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
             errors.category ? 'border-red-400' : 'border-gray-300'
           }`}
+          {...register('category')}
         >
           <option value="">Select a category</option>
           {ISSUE_CATEGORIES.map((cat) => (
@@ -187,29 +153,25 @@ export default function ReportIssueForm() {
         </select>
       </FormField>
 
-      <FormField label="Description" icon={FileText} error={errors.description}>
+      <FormField label="Description" icon={FileText} error={errors.description?.message}>
         <textarea
           rows={4}
-          name="description"
-          value={form.description}
-          onChange={handleChange}
           placeholder="Describe the issue in detail. Include when you first noticed it and how severe it appears."
           className={`w-full resize-none rounded-lg border px-3 py-2.5 text-sm transition-colors placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
             errors.description ? 'border-red-400' : 'border-gray-300'
           }`}
+          {...register('description')}
         />
       </FormField>
 
-      <FormField label="Location / Landmark" icon={MapPin} error={errors.location}>
+      <FormField label="Location / Landmark" icon={MapPin} error={errors.location?.message}>
         <input
           type="text"
-          name="location"
-          value={form.location}
-          onChange={handleChange}
           placeholder="e.g. In front of San Pablo City Hall"
           className={`w-full rounded-lg border px-3 py-2.5 text-sm transition-colors placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
             errors.location ? 'border-red-400' : 'border-gray-300'
           }`}
+          {...register('location')}
         />
       </FormField>
 
@@ -224,42 +186,36 @@ export default function ReportIssueForm() {
         Contact Information
       </p>
 
-      <FormField label="Full Name" icon={User} error={errors.fullName}>
+      <FormField label="Full Name" icon={User} error={errors.fullName?.message}>
         <input
           type="text"
-          name="fullName"
-          value={form.fullName}
-          onChange={handleChange}
           placeholder="Juan Dela Cruz"
           className={`w-full rounded-lg border px-3 py-2.5 text-sm transition-colors placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
             errors.fullName ? 'border-red-400' : 'border-gray-300'
           }`}
+          {...register('fullName')}
         />
       </FormField>
 
-      <FormField label="Email" icon={Mail} error={errors.email}>
+      <FormField label="Email" icon={Mail} error={errors.email?.message}>
         <input
           type="email"
-          name="email"
-          value={form.email}
-          onChange={handleChange}
           placeholder="you@example.com"
           className={`w-full rounded-lg border px-3 py-2.5 text-sm transition-colors placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
             errors.email ? 'border-red-400' : 'border-gray-300'
           }`}
+          {...register('email')}
         />
       </FormField>
 
-      <FormField label="Phone (optional)" icon={Phone} error={errors.phone}>
+      <FormField label="Phone (optional)" icon={Phone} error={errors.phone?.message}>
         <input
           type="tel"
-          name="phone"
-          value={form.phone}
-          onChange={handleChange}
           placeholder="0917 123 4567"
           className={`w-full rounded-lg border px-3 py-2.5 text-sm transition-colors placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
             errors.phone ? 'border-red-400' : 'border-gray-300'
           }`}
+          {...register('phone')}
         />
       </FormField>
 
