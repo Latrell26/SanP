@@ -1,11 +1,15 @@
-import ReportIssueForm from "./ReportIssueForm";
+import ReportIssueForm from './components/ReportIssueForm'
 
 function App() {
   return (
-    <main className="min-h-screen bg-[#FBFAF7] px-4 py-10 sm:px-6 sm:py-14 flex justify-center">
+    <div className="min-h-screen bg-gray-50 py-10 px-4">
+      <header className="mb-8 text-center">
+        <h1 className="text-3xl font-bold text-gray-900">MySanPablo</h1>
+        <p className="mt-1 text-gray-500">Citizen Services Platform</p>
+      </header>
       <ReportIssueForm />
-    </main>
-  );
+    </div>
+  )
 }
 
-export default App;
+export default App
